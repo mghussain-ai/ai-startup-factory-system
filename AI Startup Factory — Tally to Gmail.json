@@ -1,0 +1,532 @@
+{
+  "name": "AI Startup Factory — Tally to Gmail",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tally-startup",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "9754c524-0b31-4377-b3d9-75beeb9b8705",
+      "name": "Tally Form Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        -80
+      ],
+      "webhookId": "tally-startup-webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Form received! AI is processing your startup...",
+        "options": {}
+      },
+      "id": "1b6d5b4f-4e08-42f3-8151-e692c39882e8",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst fields = body.data?.fields || [];\n\nlet startupName = '';\nlet problem = '';\nlet targetAudience = '';\nlet budget = '';\nlet founderName = '';\nlet founderEmail = '';\n\nfor (const field of fields) {\n  const label = (field.label || '').toLowerCase();\n  const value = field.value || '';\n  if (label.includes('startup') || label.includes('name')) startupName = value;\n  if (label.includes('problem')) problem = value;\n  if (label.includes('audience') || label.includes('customer')) targetAudience = value;\n  if (label.includes('budget')) budget = value;\n  if (label.includes('founder') || label.includes('your name')) founderName = value;\n  if (label.includes('email')) founderEmail = value;\n}\n\nreturn [{\n  json: {\n    startupName: startupName || 'My Startup',\n    problem: problem || 'Not specified',\n    targetAudience: targetAudience || 'General public',\n    budget: budget || 'Not specified',\n    founderName: founderName || 'Founder',\n    founderEmail: founderEmail || '',\n    submittedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "d2110886-0cf5-41e4-890f-5326bf775780",
+      "name": "Parse Tally Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tallyData = $('Parse Tally Data').item.json;\n\n// OpenRouter response parse karna\nfunction parseAgent(nodeName) {\n  try {\n    const raw = $(nodeName).item.json;\n    // OpenRouter format\n    const content = raw?.choices?.[0]?.message?.content \n      || raw?.message?.content \n      || raw?.content \n      || raw?.text \n      || '{}';\n    return JSON.parse(content.replace(/```json|```/g, '').trim());\n  } catch(e) {\n    return {};\n  }\n}\n\nconst planner  = parseAgent('AI Startup Planner Agent');\nconst market   = parseAgent('Market Research Agent');\nconst pricing  = parseAgent('Pricing Agent');\nconst marketing = parseAgent('Marketing Agent');\n\nreturn [{\n  json: {\n    startupName: tallyData.startupName,\n    founderName: tallyData.founderName,\n    founderEmail: tallyData.founderEmail,\n    submittedAt: tallyData.submittedAt,\n    problem: tallyData.problem,\n    targetAudience: tallyData.targetAudience,\n    budget: tallyData.budget,\n\n    // Planner\n    executiveSummary: planner.executiveSummary || '',\n    solution: planner.solution || '',\n    businessModel: planner.businessModel || '',\n    uniqueValueProposition: planner.uniqueValueProposition || '',\n    revenueStreams: planner.revenueStreams || '',\n\n    // Market Research\n    marketSize: market.marketSize || '',\n    topCompetitors: Array.isArray(market.topCompetitors) \n      ? market.topCompetitors.join(', ') \n      : (market.topCompetitors || ''),\n    marketTrends: market.marketTrends || '',\n    entryStrategy: market.entryStrategy || '',\n\n    // Pricing\n    pricingModel: pricing.pricingModel || '',\n    recommendedPrice: pricing.recommendedPrice || '',\n    revenueProjection: pricing.revenueProjection12Months || '',\n\n    // Marketing\n    brandPositioning: marketing.brandPositioning || '',\n    launchCampaign: marketing.launchCampaign || '',\n    month1Actions: marketing.month1Actions || '',\n    month3Goals: marketing.month3Goals || '',\n\n    processedAt: new Date().toISOString()\n  }\n}];\n  "
+      },
+      "id": "5bffffe1-a797-4553-820a-a0955191c78a",
+      "name": "Merge All Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1CnecfSntOVgR96v-Esi7fiGguoJM8QHEYD5dFwccpRw",
+          "mode": "list",
+          "cachedResultName": "AI Startups Factory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CnecfSntOVgR96v-Esi7fiGguoJM8QHEYD5dFwccpRw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CnecfSntOVgR96v-Esi7fiGguoJM8QHEYD5dFwccpRw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Startup Name": "={{ $json.startupName }}",
+            "Founder Name": "={{ $json.founderName }}",
+            "Email": "={{ $json.founderEmail }}",
+            "Startup Plan": "={{ $json.executiveSummary }}",
+            "Market Research": "={{ $json.marketSize }} — Competitors: {{ $json.topCompetitors }} — Entry: {{ $json.entryStrategy }}",
+            "Pricing Strategy": "={{ $json.pricingModel }} — Price: {{ $json.recommendedPrice }} — Projection: {{ $json.revenueProjection }}",
+            "Marketing Plan": "={{ $json.brandPositioning }} — Launch: {{ $json.launchCampaign }} — Month1: {{ $json.month1Actions }}",
+            "Submitted At": "={{ $now }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Startup Name",
+              "displayName": "Startup Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Founder Name",
+              "displayName": "Founder Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Startup Plan",
+              "displayName": "Startup Plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Market Research",
+              "displayName": "Market Research",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Pricing Strategy",
+              "displayName": "Pricing Strategy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Marketing Plan",
+              "displayName": "Marketing Plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Submitted At",
+              "displayName": "Submitted At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "fd40416e-d161-42bb-b902-a3e3f6ca816c",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1536,
+        -80
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aoLjf85Pgy4Ubnxi",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "=🚀 Your AI Startup Plan is Ready — {{ $json['Startup Name'] }}",
+        "emailType": "text",
+        "message": "=Hi{{ $('Merge All Results').item.json.startupName }} ,\n\nThank you for submitting your startup idea to AI Startup Factory. Your complete analysis is ready.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSTARTUP PLAN\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nStartup Name: {{ $('Merge All Results').item.json.founderName }}\n\nSummary: {{ $('Merge All Results').item.json.executiveSummary }}\n\nSolution: {{ $('Merge All Results').item.json.solution }}\n\nBusiness Model: {{ $('Merge All Results').item.json.businessModel }}\n\nUnique Value: {{ $('Merge All Results').item.json.uniqueValueProposition }}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nMARKET RESEARCH\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{{ $('Merge All Results').item.json.marketSize }}\nMarket Size: \n{{ $('Merge All Results').item.json.topCompetitors }}\nTop Competitors: \n\nMarket Trends: {{ $('Merge All Results').item.json.marketTrends }}\n\nEntry Strategy:{{ $('Merge All Results').item.json.entryStrategy }}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nPRICING STRATEGY\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nPricing Model: {{ $('Merge All Results').item.json.pricingModel }}\n\nRecommended Price: \n{{ $('Merge All Results').item.json.recommendedPrice }}\n12 Month Revenue Projection:{{ $('Merge All Results').item.json.revenueProjection }}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nMARKETING PLAN\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nBrand Positioning: {{ $('Merge All Results').item.json.brandPositioning }}\n\nLaunch Campaign: {{ $('Merge All Results').item.json.launchCampaign }}\n\nMonth 1 Actions: {{ $('Merge All Results').item.json.month1Actions }}\n\nMonth 3 Goals: {{ $('Merge All Results').item.json.month3Goals }}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nBest Regards,\nAI Startup Factory Team\n\nGenerated on: {{ $('Merge All Results').item.json.processedAt }}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "options": {}
+      },
+      "id": "3f3d7189-9cc6-477b-b784-73dc24302e14",
+      "name": "Send Gmail Report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1712,
+        -80
+      ],
+      "webhookId": "bd545956-0e2d-49f5-8189-df9fbb71f0aa",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "LHxscjSPfCCRJhns",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a professional Market Research Analyst who has worked with top venture capital firms. You specialize in identifying market opportunities and competitive landscapes for early-stage startups.\n\nAnalyze the given startup and return a JSON response with these exact keys:\n- marketSize: Total addressable market size in dollars\n- targetSegments: Top 3 customer segments to target first\n- topCompetitors: List of 5 main competitors with one-line description each\n- marketTrends: 3 current trends that support this startup\n- customerPainPoints: Top 5 pain points of the target customer\n- marketGaps: Gaps in the market this startup can fill\n- entryStrategy: Best way to enter the market\n- marketingChannels: Top 3 channels to reach customers\n\nRules:\n- Use real market data and realistic estimates\n- Be specific about numbers where possible\n- Always respond in valid JSON only\n- No markdown, no extra text outside JSON",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        528,
+        -80
+      ],
+      "id": "bef93b86-fbd9-4e03-960c-506d6055a5d0",
+      "name": "Market Research Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a Pricing Strategy Expert who has helped over 500 SaaS and service startups find their optimal pricing. You understand consumer psychology, competitive pricing, and revenue maximization.\n\nCreate a complete pricing strategy and return a JSON response with these exact keys:\n- pricingModel: Best pricing model for this startup (SaaS, one-time, freemium, etc.)\n- tiers: 3 pricing tiers with name, price, and features for each\n- freemiumStrategy: Whether to offer free tier and why\n- recommendedPrice: Single best price point to start with\n- competitorPricing: How competitors are pricing similar products\n- revenueProjection12Months: Realistic 12-month revenue projection\n- pricingRationale: Why this pricing strategy works\n- upsellOpportunities: Ways to increase revenue per customer\n\nRules:\n- Consider the founder's budget when setting prices\n- Be realistic with revenue projections\n- Always respond in valid JSON only\n- No markdown, no extra text outside JSON",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        816,
+        -80
+      ],
+      "id": "4d024668-b5d6-4151-8dcf-789080ffee70",
+      "name": "Priceing Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a Growth Marketing Expert who has scaled multiple startups from 0 to 100,000 users. You specialize in low-budget, high-impact marketing strategies for early-stage startups.\n\nCreate a complete marketing plan and return a JSON response with these exact keys:\n- brandPositioning: How to position the brand in the market\n- contentStrategy: Type of content to create and where to post\n- socialMediaPlan: Which platforms to focus on and posting strategy\n- paidAdsStrategy: Best paid advertising approach with budget allocation\n- seoKeywords: Top 10 SEO keywords to target\n- launchCampaign: Step-by-step launch campaign plan\n- influencerStrategy: How to leverage influencers on a small budget\n- emailMarketingFlow: 5-email welcome sequence outline\n- month1Actions: Specific tasks to complete in first 30 days\n- month3Goals: Measurable goals to hit by end of month 3\n\nRules:\n- Focus on low-cost, high-impact strategies\n- Give specific platform names, not generic advice\n- Always respond in valid JSON only\n- No markdown, no extra text outside JSON",
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1088,
+        -80
+      ],
+      "id": "f3dc498a-6dd6-4377-ad93-10606d789d3b",
+      "name": "Marketing Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are an expert AI Startup Planner with 20 years of experience helping founders build successful startups. Your job is to create a clear, actionable startup plan.\n\nWhen given a startup idea, you will analyze it deeply and return a JSON response with these exact keys:\n- executiveSummary: 2-3 sentence overview of the startup\n- problemStatement: Clear description of the problem being solved\n- solution: How the startup solves this problem\n- uniqueValueProposition: What makes this startup different from competitors\n- businessModel: How the startup makes money\n- revenueStreams: List of all possible revenue sources\n- competitiveAdvantage: Why this startup will win\n- shortTermGoals: First 90 days action plan\n- longTermVision: Where this startup will be in 3 years\n\nRules:\n- Be specific and realistic\n- Avoid generic advice\n- Always respond in valid JSON only\n- No markdown, no extra text outside JSON",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Startup Name: {{ $('Parse Tally Data').item.json.startupName }} Problem: {{ $('Parse Tally Data').item.json.problem }} Target Audience: {{ $('Parse Tally Data').item.json.targetAudience }} Budget: {{ $('Parse Tally Data').item.json.budget }}  Respond ONLY with valid JSON, no markdown, no extra text."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        224,
+        -80
+      ],
+      "id": "442617d9-40f6-462c-a4fe-b91127e95158",
+      "name": "AI Startup Planner Agent"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.0-flash-001",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        272,
+        96
+      ],
+      "id": "c86d09ca-7f66-4792-8573-9c092e046ae4",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "qBfwMRyc3GbtKkeS",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.0-flash-001",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        608,
+        96
+      ],
+      "id": "5a47e70b-511f-4822-b421-9e56909f997a",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "qBfwMRyc3GbtKkeS",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.0-flash-001",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        912,
+        112
+      ],
+      "id": "e978701b-70f0-47c0-ac07-95a2c1da8cbb",
+      "name": "OpenRouter Chat Model2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "qBfwMRyc3GbtKkeS",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.0-flash-001",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        112
+      ],
+      "id": "50a409ee-4454-4cee-9afc-ff7f4ac6d282",
+      "name": "OpenRouter Chat Model3",
+      "credentials": {
+        "openRouterApi": {
+          "id": "qBfwMRyc3GbtKkeS",
+          "name": "OpenRouter account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Tally Form Webhook": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Parse Tally Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Tally Data": {
+      "main": [
+        [
+          {
+            "node": "AI Startup Planner Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Results": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Send Gmail Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Market Research Agent": {
+      "main": [
+        [
+          {
+            "node": "Priceing Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Priceing Agent": {
+      "main": [
+        [
+          {
+            "node": "Marketing Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marketing Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge All Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Startup Planner Agent": {
+      "main": [
+        [
+          {
+            "node": "Market Research Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Startup Planner Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Market Research Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Priceing Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Marketing Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e958694a-bf35-4e25-8dbb-7f8382277c02",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0e61c90a938d828ddaafd0fc7cee05e7951a0190b73d0a5cca3e7e26893e3a32"
+  },
+  "id": "GR41ax0s3J9hS2oG",
+  "tags": [
+    {
+      "updatedAt": "2026-06-01T04:25:31.729Z",
+      "createdAt": "2026-06-01T04:25:31.729Z",
+      "id": "K8IDKNviJiNAyYi0",
+      "name": "AI Startup Factory"
+    },
+    {
+      "updatedAt": "2026-06-01T04:25:31.755Z",
+      "createdAt": "2026-06-01T04:25:31.755Z",
+      "id": "LV4JCDklRJz0BkT7",
+      "name": "LinkedIn"
+    },
+    {
+      "updatedAt": "2026-06-01T04:25:31.695Z",
+      "createdAt": "2026-06-01T04:25:31.695Z",
+      "id": "vBnEOolmzoyzMSYG",
+      "name": "Tally"
+    }
+  ]
+}
